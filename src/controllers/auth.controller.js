@@ -1,36 +1,49 @@
 const userModel = require("../models/user.model.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const emailVerify = require("../middlewares/emailVerify.middleware.js")
 
-async function registerUser(req,res){
-    const {name, email, password} = req.body;
-    const isAlreadyExists = await userModel.findOne({email})
-    if(isAlreadyExists){
-        return res.status(400).json({message: "user already exists"})
+async function registerUser(req, res) {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const isAlreadyExists = await userModel.findOne({ email });
+    if (isAlreadyExists) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new userModel({
-        name,
-        email,
-        password: hashedPassword,
-    })
-    await user.save();
+    const emailOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    const token = jwt.sign({
-        id:user._id,
-    }, process.env.JWT_SECRET);
+    const user = await userModel.create({
+      name,
+      email,
+      password: hashedPassword,
+      emailOtp,
+      emailOtpExpiry: Date.now() + 10 * 60 * 1000,
+    });
 
-    res.cookie("token", token)
-    res.status(200).json({
-        message: "user registered successfully",
-        user: {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-        }
-    })
+    try {
+      await emailVerify.sendOtpEmail(user.email, emailOtp);
+    } catch (emailError) {
+      await userModel.deleteOne({ _id: user._id });
+      return res.status(500).json({ message: "Failed to send OTP email" });
+    }
+
+    res.status(201).json({
+      message: "OTP sent to email. Please verify your account.",
+    });
+
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ message: "Registration failed" });
+  }
 }
+
+
 
 async function loginUser(req,res){
     const {email, password} =req.body;
