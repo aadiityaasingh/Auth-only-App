@@ -1,80 +1,229 @@
-# 🔐 Auth System with Email OTP Verification (Node.js + JWT)
+# 🔐 Auth System with Email Verification
 
-A secure backend authentication system built with Node.js, Express, MongoDB, JWT, HTTP-only cookies, and Email OTP verification.
+A lightweight but production-ready authentication backend built with **Node.js**, **Express.js**, and **MongoDB**. Features full user auth flow with **OTP-based email verification** via Nodemailer and Gmail SMTP, JWT cookie sessions, and a welcome email on successful verification.
 
-🚀 Features
+---
 
-🔑 Core Authentication:
-User Registration
-Email OTP Verification (6-digit code)
-User Login
-Logout
-Protected Routes
+## 🛠 Tech Stack
 
-📧 Email System:
-OTP sent during registration
-OTP expires after 10 minutes
-Welcome email sent after successful verification
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| Framework | Express.js v5 |
+| Database | MongoDB + Mongoose |
+| Authentication | JWT + HTTP-only Cookies |
+| Password Hashing | bcrypt |
+| Email Service | Nodemailer (Gmail SMTP) |
 
-🔒 Security Features:
-Password hashing with bcrypt
-JWT-based authentication
-Tokens stored in HTTP-only cookies
-Email ownership verification required before login
-OTP expiry system
-Protection against XSS token theft
-Basic CSRF mitigation using sameSite cookies
+---
 
-Authentication Flow
-1️⃣ Registration:-
+## ✨ Features
 
-User submits:
-Name
-Email
-Password
+- 📝 **Register** — Creates user, generates 6-digit OTP, sends verification email
+- 📧 **Email OTP Verification** — Validates OTP with 10-minute expiry, issues JWT on success
+- 📨 **Welcome Email** — Sent automatically after successful email verification
+- 🔑 **Login** — Validates credentials, returns JWT cookie
+- 🚪 **Logout** — Clears JWT cookie
+- ⏱ **OTP Expiry** — OTP auto-expires after 10 minutes
+- 🔒 **Security** — Passwords hashed with bcrypt, JWT stored in HTTP-only cookie
 
-Server actions:
-Checks if user already exists
-Hashes password using bcrypt
-Generates 6-digit OTP
-Stores OTP + expiry time in DB
-Sends OTP to user’s email
-⚠️ User is NOT logged in yet
+---
 
-2️⃣ Email Verification (OTP):-
-User submits:
-Email
-6-digit OTP
-Server verifies:
-OTP matches
-OTP is not expired
+## 📁 Project Structure
 
-If valid:
-isVerified → set to true
-OTP fields cleared
-Welcome email sent
+```
+auth-email-verification/
+├── src/
+│   ├── controllers/
+│   │   ├── auth.controller.js     # Register, login, logout
+│   │   └── otp.controller.js      # OTP email verification
+│   ├── db/
+│   │   └── db.js                  # MongoDB connection
+│   ├── models/
+│   │   └── user.model.js          # User schema with OTP fields
+│   ├── routes/
+│   │   └── auth.route.js          # All auth routes
+│   └── services/
+│       └── email.service.js       # Nodemailer OTP & welcome emails
+├── app.js                         # Express app & route mounting
+├── server.js                      # Entry point
+├── .env
+├── .gitignore
+└── package.json
+```
 
-User is logged in (JWT cookie issued)
+---
 
-3️⃣ Login:-
-User submits:
-Email
-Password
-Server checks:
-User exists
-Password matches
-Email is verified ✅
+## ⚙️ Getting Started
 
-If all pass:
-JWT token generated
-Token stored in HTTP-only cookie
+### Prerequisites
 
-4️⃣ Accessing Protected Routes:-
-When a logged-in user makes a request:
-Browser automatically sends the JWT cookie
-Auth middleware verifies the token
-If valid → access granted
-If invalid/expired → access denied
+- Node.js v18+
+- MongoDB (local or [MongoDB Atlas](https://www.mongodb.com/atlas))
+- A Gmail account with an [App Password](https://myaccount.google.com/apppasswords) enabled
 
-5️⃣ Logout:-
-Server clears the authentication cookie:
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/aadiityaasingh/Auth-only-App.git
+cd Auth-only-App
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+touch .env
+# Fill in your values (see below)
+
+# 4. Start the server
+node server.js
+```
+
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+PORT=5000
+DB_URI=mongodb://localhost:27017/auth-system
+JWT_SECRET=your_jwt_secret_key
+EMAIL_USER=your_gmail_address@gmail.com
+EMAIL_PASS=your_gmail_app_password
+```
+
+> ⚠️ Use a **Gmail App Password**, not your regular Gmail password. Enable it at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
+
+---
+
+## 📡 API Reference
+
+**Base URL:** `http://localhost:PORT`
+
+All routes are prefixed with `/api/auth`.
+
+---
+
+### 👤 Auth — `/api/auth`
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/auth/user/register` | Public | Register user & send OTP to email |
+| POST | `/api/auth/user/login` | Public | Login and receive JWT cookie |
+| GET | `/api/auth/user/logout` | Public | Logout and clear JWT cookie |
+| POST | `/api/auth/verify-otp` | Public | Verify email OTP |
+
+---
+
+### Request & Response Examples
+
+**Register**
+```json
+// POST /api/auth/user/register
+// Request
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+// Response 201
+{
+  "message": "OTP sent to email. Please verify your account."
+}
+```
+
+**Verify OTP**
+```json
+// POST /api/auth/verify-otp
+// Request
+{
+  "email": "john@example.com",
+  "otp": "847291"
+}
+
+// Response 200 — sets JWT cookie
+{
+  "message": "Email verified successfully"
+}
+```
+
+**Login**
+```json
+// POST /api/auth/user/login
+// Request
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+// Response 200 — sets JWT cookie
+{
+  "message": "login successfully",
+  "user": {
+    "name": "John Doe",
+    "_id": "<userId>",
+    "email": "john@example.com"
+  }
+}
+```
+
+**Logout**
+```json
+// GET /api/auth/user/logout
+// Response 200 — clears JWT cookie
+{
+  "message": "logout successfully"
+}
+```
+
+---
+
+## 🔄 Registration & Verification Flow
+
+```
+1. POST /api/auth/user/register
+        │
+        ▼
+   Hash password → Generate 6-digit OTP → Save user (isVerified: false)
+        │
+        ▼
+   Send OTP email via Gmail SMTP (expires in 10 min)
+        │
+        ▼
+2. POST /api/auth/verify-otp  (with email + OTP)
+        │
+        ▼
+   Validate OTP & expiry → Mark isVerified: true → Clear OTP fields
+        │
+        ▼
+   Send welcome email → Issue JWT cookie → Done ✅
+```
+
+---
+
+
+## 📧 Email Service
+
+Two transactional emails are sent via Gmail SMTP (`email.service.js`):
+
+| Email | Trigger | Content |
+|---|---|---|
+| **OTP Verification** | On registration | 6-digit OTP code, expires in 10 minutes |
+| **Welcome Email** | On successful OTP verification | Welcome message with user's name |
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome!
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/my-feature`
+3. Commit your changes: `git commit -m 'Add my feature'`
+4. Push to the branch: `git push origin feature/my-feature`
+5. Open a Pull Request
+
+---
+
+> Built with 💙 for secure, email-verified authentication
